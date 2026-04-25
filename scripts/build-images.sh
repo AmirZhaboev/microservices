@@ -1,68 +1,58 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 DEFAULT_TAG="latest"
-
+IMAGE_TAG="${IMAGE_TAG:-$DEFAULT_TAG}"
 
 if [ "$#" -gt 0 ]; then
   SERVICES=("$@")
 else
-  mapfile -t SERVICES < <(
-    find "$ROOT_DIR" -mindepth 1 -maxdepth 2 -type d | while read -r dir; do
-      if [ -f "$dir/pom.xml" ] && [ -f "$dir/Dockerfile" ]; then
-        basename "$dir"
-      fi
-    done | sort
+  SERVICES=(
+    "config-server"
+    "licenseservice"
+    "organizationservice"
+    "api_gateway"
   )
 fi
 
-if [ "${#SERVICES[@]}" -eq 0 ]; then
-  echo "Не найдено ни одного сервиса с pom.xml и Dockerfile"
-  exit 1
-fi
+image_name_for_service() {
+  case "$1" in
+    config-server) echo "config-server" ;;
+    licenseservice) echo "license-service" ;;
+    organizationservice) echo "organization-service" ;;
+    api_gateway) echo "api-gateway" ;;
+    *) echo "$1" ;;
+  esac
+}
 
 echo "Будут собраны сервисы:"
 printf ' - %s\n' "${SERVICES[@]}"
 echo
 
-build_service() {
-  local service="$1"
-  local service_dir="$ROOT_DIR/$service/$service"
-  local image_tag="${IMAGE_TAG:-$DEFAULT_TAG}"
-  local image_name
+for service in "${SERVICES[@]}"; do
+  SERVICE_DIR="$ROOT_DIR/$service/$service"
+  IMAGE_NAME="$(image_name_for_service "$service")"
 
-  case "$service" in
-    config-server) image_name="config-server" ;;
-    licenseservice) image_name="license-service" ;;
-    organizationservice) image_name="organization-service" ;;
-    *)
-      image_name="$service"
-      ;;
-  esac
   echo "=================================================="
   echo "Сервис: $service"
-  echo "Папка: $service_dir"
+  echo "Папка: $SERVICE_DIR"
+  echo "Docker image: $IMAGE_NAME:$IMAGE_TAG"
   echo "=================================================="
 
-  if [ ! -d "$service_dir" ]; then
-    echo "Ошибка: папка $service_dir не существует"
+  if [ ! -f "$SERVICE_DIR/pom.xml" ]; then
+    echo "Ошибка: не найден pom.xml в $SERVICE_DIR"
     exit 1
   fi
 
-  if [ ! -f "$service_dir/pom.xml" ]; then
-    echo "Ошибка: в $service_dir нет pom.xml"
+  if [ ! -f "$SERVICE_DIR/Dockerfile" ]; then
+    echo "Ошибка: не найден Dockerfile в $SERVICE_DIR"
     exit 1
   fi
 
-  if [ ! -f "$service_dir/Dockerfile" ]; then
-    echo "Ошибка: в $service_dir нет Dockerfile"
-    exit 1
-  fi
+  cd "$SERVICE_DIR"
 
-  cd "$service_dir"
-
-  echo "==> Maven package: $service"
   if [ -f "./mvnw" ]; then
     chmod +x ./mvnw
     ./mvnw clean package -DskipTests
@@ -70,34 +60,23 @@ build_service() {
     mvn clean package -DskipTests
   fi
 
-  echo "==> Поиск jar"
-  local jar_file
-  jar_file=$(find target -maxdepth 1 -type f -name "*.jar" \
+  JAR_FILE="$(find target -maxdepth 1 -type f -name "*.jar" \
     ! -name "*sources.jar" \
     ! -name "*javadoc.jar" \
-    ! -name "original-*.jar" | head -n 1)
+    ! -name "original-*.jar" | head -n 1)"
 
-  if [ -z "$jar_file" ]; then
-    echo "Ошибка: jar файл не найден в $service_dir/target"
+  if [ -z "$JAR_FILE" ]; then
+    echo "Ошибка: jar файл не найден в $SERVICE_DIR/target"
     exit 1
   fi
 
-  echo "==> Найден jar: $jar_file"
-
-  echo "==> Docker build: ${image_name}:${image_tag}"
   docker build \
-    --build-arg JAR_FILE="$jar_file" \
-    -t "${image_name}:${image_tag}" \
+    --build-arg JAR_FILE="$JAR_FILE" \
+    -t "$IMAGE_NAME:$IMAGE_TAG" \
     .
 
-  echo "==> Готово: ${image_name}:${image_tag}"
+  echo "Готово: $IMAGE_NAME:$IMAGE_TAG"
   echo
-}
-
-for service in "${SERVICES[@]}"; do
-  build_service "$service"
 done
 
-echo "======================================"
 echo "Сборка завершена успешно"
-echo "======================================"
