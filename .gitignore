@@ -1,0 +1,42 @@
+# env
+.env
+
+# build
+target/
+build/
+*.class
+*.jar
+*.war
+
+# logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.iml
+out/
+
+# OS
+.DS_Store
+
+# Docker
+*.tar
+docker-compose.override.yml
+
+# Spring configs
+application-local.*
+application-dev.*
+application-secrets.*
+
+# Maven
+dependency-reduced-pom.xml
+
+# DB
+*.db
+*.sqlite
+*.sqlite3
+
+# Tests
+coverage/
+surefire-reports/

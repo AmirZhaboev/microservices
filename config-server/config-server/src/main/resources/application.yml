@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: config-server
+
+  config:
+    import: vault://
+
+  cloud:
+    vault:
+      uri: http://vault.microservices.svc.cluster.local:8200
+      authentication: TOKEN
+      token: ${VAULT_CONFIG_SERVER_TOKEN}
+      kv:
+        enabled: true
+        backend: secret
+        application-name: config-server
+        default-context: config-server
+        profiles: ""
+
+    config:
+      server:
+        git:
+          uri: https://github.com/AmirZhaboev/microservices-config-repo.git
+          default-label: main
+          clone-on-start: true
+          order: 2
+        vault:
+          host: vault.microservices.svc.cluster.local
+          port: 8200
+          scheme: http
+          backend: secret
+          kv-version: 2
+          authentication: TOKEN
+          token: ${VAULT_CONFIG_SERVER_TOKEN}
+
+server:
+  port: 8071
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: license-service
+  namespace: microservices
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: license-service
+  template:
+    metadata:
+      labels:
+        app: license-service
+    spec:
+      initContainers:
+        - name: wait-for-config-server
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z config-server 8071; do
+                echo "Waiting for config-server port..."
+                sleep 3
+              done
+      containers:
+        - name: license-service
+          image: license-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: default
+            - name: SPRING_CONFIG_IMPORT
+              value: "configserver:http://config-server:8071"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: license-service
+  namespace: microservices
+spec:
+  selector:
+    app: license-service
+  ports:
+    - port: 80
+      targetPort: 8080

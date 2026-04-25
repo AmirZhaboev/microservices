@@ -1,0 +1,8 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+example:
+  global-property: I AM GLOBAL

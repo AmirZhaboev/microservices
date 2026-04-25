@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: api-gateway
+  config:
+    import: optional:configserver:http://config-server:8071
+  cloud:
+    config:
+      headers:
+        X-Config-Token: ${VAULT_TOKEN}

@@ -1,0 +1,37 @@
+server:
+  dev:
+    enabled: false
+
+  standalone:
+    enabled: false
+
+  ha:
+    enabled: true
+    replicas: 1
+
+    raft:
+      enabled: true
+      setNodeId: true
+
+    config: |
+      ui = true
+
+      listener "tcp" {
+        address         = "0.0.0.0:8200"
+        cluster_address = "0.0.0.0:8201"
+        tls_disable     = 1
+      }
+
+      storage "raft" {
+        path = "/vault/data"
+      }
+
+      service_registration "kubernetes" {}
+
+  dataStorage:
+    enabled: true
+    size: 2Gi
+    accessMode: ReadWriteOnce
+
+ui:
+  enabled: true
